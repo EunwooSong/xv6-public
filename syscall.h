@@ -20,3 +20,8 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+
+// Custom system call numbers
+#define SYS_setnice 22
+#define SYS_getnice 23
+#define SYS_ps      24

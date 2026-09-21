@@ -103,8 +103,11 @@ trap(struct trapframe *tf)
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
-     tf->trapno == T_IRQ0+IRQ_TIMER)
-    yield();
+     tf->trapno == T_IRQ0+IRQ_TIMER) {
+    myproc()->runtime++;  // cpu 점유 시간 증가 (timer interrupt 발생 시마다 1씩 증가)
+    // myproc()->tick=ticks; // 프로세스가 실행시의 ticks 값 저장 -> scheduler에서 처리하도록 변경, runtime이 0인데 tick은 956
+    yield();              // runable 상태로 바꾸고 스케줄러에게 CPU 양보 
+  }
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)

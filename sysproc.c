@@ -89,3 +89,35 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// 인자를 전달받아 유효한지 확인 후 syscall(setnice, getnice, ps) 호출
+int
+sys_setnice(void)
+{
+
+  int pid, nice;
+  if(argint(0, &pid) < 0 || argint(1, &nice) < 0)
+    return -1;
+
+  // nice 값이 유효한지 검증
+  if(nice < 0 || nice > 10)
+    return -1;
+    
+  return setnice(pid, nice);
+}
+
+int
+sys_getnice(void)
+{
+  int pid;
+
+  if(argint(0, &pid) < 0)
+    return -1;
+  return getnice(pid);
+}
+
+int
+sys_ps(void)
+{
+  return ps();
+}

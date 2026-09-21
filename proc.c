@@ -112,6 +112,11 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // Custom fields 초기화
+  p->nice = 5; // 기본 nice 값은 5로 설정
+  p->runtime = 0; // 초기 runtime은 0으로 설정
+  p->tick = 0; // 초기 tick은 0으로 설정
+
   return p;
 }
 
@@ -199,6 +204,9 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+
+  // nice 상속, allocproc에서 runtime, tick 기본값
+  np->nice = curproc->nice;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -342,6 +350,9 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+
+      // 프로세스가 실행시의 ticks 값 저장
+      p->tick = ticks;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -531,4 +542,68 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// setnice: 사용자가 지정한 pid의 nice 값을 변경하는 함수
+int
+setnice(int pid, int nice)
+{
+  struct proc *p;
+
+  // ptable 돌면서 pid와 일치하는 프로세스를 찾고, nice 값을 변경
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->nice = nice;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
+
+// getnice: 사용자가 지정한 pid의 nice 값을 반환하는 함수
+int
+getnice(int pid)
+{
+  struct proc *p;
+
+  // ptable 돌면서 pid와 일치하는 프로세스를 찾고, nice 값을 반환
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      int nice_value = p->nice;
+      release(&ptable.lock);
+      return nice_value;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
+
+// ps: 현재 실행중인 프로세스들의 정보를 출력하는 함수
+int
+ps(void)
+{
+  static char *states[] = {
+  [UNUSED]    "unused",
+  [EMBRYO]    "embryo",
+  [SLEEPING]  "sleep",
+  [RUNNABLE]  "runble",
+  [RUNNING]   "run",
+  [ZOMBIE]    "zombie"
+  };
+  
+  struct proc *p;
+  acquire(&ptable.lock);
+  cprintf("NAME\tPID\tSTATE\tPRIORITY\tRUNTIME\tTICK\n");
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED){
+      cprintf("%s\t%d\t%s\t%d\t%d\t%d\n",
+        p->name, p->pid, states[p->state], p->nice, p->runtime, p->tick);
+    }
+  }
+  release(&ptable.lock);
+  return 0;
 }

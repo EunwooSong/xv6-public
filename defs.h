@@ -121,6 +121,11 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 
+// proc.c에 추가로 구현할 함수 선언
+int             setnice(int, int);
+int             getnice(int);
+int             ps(void);
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 

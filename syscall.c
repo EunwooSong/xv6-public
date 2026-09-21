@@ -104,6 +104,11 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 
+// Custom system calls: extern 선언
+extern int sys_setnice(void);
+extern int sys_getnice(void);
+extern int sys_ps(void);
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -126,6 +131,11 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+// syscall table에 custom system call을 추가.
+// eax에 저장된 syscall 번호를 확인하여 어떤 syscall인지 확인 후 처리됨
+[SYS_setnice] sys_setnice, 
+[SYS_getnice] sys_getnice, 
+[SYS_ps]      sys_ps,      
 };
 
 void

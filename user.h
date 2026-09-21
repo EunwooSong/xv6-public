@@ -37,3 +37,8 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+// Custom system calls, 인터페이스 정의
+int setnice(int, int);  // pid, nice를 입력받음(실패: -1, 성공: 0)
+int getnice(int);       // 프로세스의 nice 값을 반환(실패: -1, 성공: 0~10)
+int ps(void);           // 프로세스 정보를 출력
