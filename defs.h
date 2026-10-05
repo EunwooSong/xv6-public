@@ -125,6 +125,7 @@ void            yield(void);
 int             setnice(int, int);
 int             getnice(int);
 int             ps(void);
+void            aging(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

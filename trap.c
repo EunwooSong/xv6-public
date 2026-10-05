@@ -53,6 +53,7 @@ trap(struct trapframe *tf)
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
+      aging();  // 전역 tick이 증가하는 시점에 프로세스의 wait_tick을 갱신함
     }
     lapiceoi();
     break;

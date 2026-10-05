@@ -20,6 +20,9 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+// 헬퍼 함수 선언
+int cal_effective_nice(struct proc *p);
+
 void
 pinit(void)
 {
@@ -116,7 +119,7 @@ found:
   p->nice = 5; // 기본 nice 값은 5로 설정
   p->runtime = 0; // 초기 runtime은 0으로 설정
   p->tick = 0; // 초기 tick은 0으로 설정
-
+  p->wait_ticks = 0; // 새 프로세스 대기 시간은 0
   return p;
 }
 
@@ -206,7 +209,8 @@ fork(void)
   *np->tf = *curproc->tf;
 
   // nice 상속, allocproc에서 runtime, tick 기본값
-  np->nice = curproc->nice;
+  //np->nice = curproc->nice;
+  // 과제 2에서는 nice 상속이 아닌, 기본값 5로, allocproc에서 하므로 추가 코드 불필요
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -226,6 +230,7 @@ fork(void)
 
   release(&ptable.lock);
 
+  yield(); // 부모보다 우선순위가 클 수 있으니, 다시 스케줄링
   return pid;
 }
 
@@ -332,6 +337,7 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  struct proc *next = 0;  // 스케줄링을 통해 실행될 process
   c->proc = 0;
   
   for(;;){
@@ -340,10 +346,27 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    // RUNNABLE 중, effective_nice_value가 가장 작은 프로세스 선택
+    // ptable을 순회하며 다음에 실행할 프로세스를 찾음
+    next = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
+      // 조건식 1: 초기값이면 바로 바꿈
+      // 조건식 2: effective_nice_value가 작은 값으로 변경함
+      // 조건식 3: effective_nice_value가 같다면 wait_ticks가 높은 값으로 변경함
+      if(next == 0 ||
+         cal_effective_nice(p) < cal_effective_nice(next) ||
+         (cal_effective_nice(p) == cal_effective_nice(next) &&
+          p->wait_ticks > next->wait_ticks))
+        next = p;
+    }
+
+
+    if (next) {
+      p = next;
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -353,6 +376,7 @@ scheduler(void)
 
       // 프로세스가 실행시의 ticks 값 저장
       p->tick = ticks;
+      p->wait_ticks = 0; // 스케줄되었으므로, 대기 시간 초기화
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -556,6 +580,7 @@ setnice(int pid, int nice)
     if(p->pid == pid){
       p->nice = nice;
       release(&ptable.lock);
+      yield(); // 우선순위가 변경되었으므로, 다시 스케줄링
       return 0;
     }
   }
@@ -606,4 +631,28 @@ ps(void)
   }
   release(&ptable.lock);
   return 0;
+}
+
+// aging: timer tick마다 RUNNABLE 프로세스의 대기 시간을 1 증가
+void
+aging(void)
+{
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  // ptable 돌면서 RUNNABLE인 프로세스의 wait_ticks 증가
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNABLE)
+      p->wait_ticks++;
+  }
+
+  release(&ptable.lock);
+}
+
+// effective nice 계산
+int
+cal_effective_nice(struct proc *p) {
+  int env = p->nice - (p->wait_ticks/AGING_INTERVAL);
+  if (env < 0) return 0;
+  return env;
 }

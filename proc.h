@@ -54,6 +54,7 @@ struct proc {
   int nice;                   // Process priority (0-10, 0 is highest)
   int runtime;                // cpu 점유 시간(intrrupt 발생 시마다 1씩 증가)
   int tick;                   // 프로세스가 실행시의 ticks 값 저장
+  int wait_ticks;             // RUNNABLE로 소비한 틱 수
 };
 
 // Process memory is laid out contiguously, low addresses first:
